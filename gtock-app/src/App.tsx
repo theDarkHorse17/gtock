@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { extractFolderId } from "./utils/parser";
 import { getFolderName } from "./utils/drive";
@@ -58,7 +58,15 @@ function AppContent() {
     fetchNextPage,
     error,
   } = useDriveVideos(folderIds);
-  const videos = data?.pages.flatMap((page) => page.videos) || [];
+  const videos = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          data?.pages.flatMap((page) => page.videos).map((v) => [v.id, v])
+        ).values()
+      ),
+    [data]
+  );
   const likedCount = readLiked().length;
 
   function updateUrl(index: number, value: string) {

@@ -385,9 +385,12 @@ export function Feed({ videos, folderId, startVideoId, hasMore, isLoadingMore, o
           </div>
 
           {/* Load more indicator */}
-          {showLoadMoreIndicator && (
-            <div
-              className="absolute left-1/2 -translate-x-1/2 bottom-24 z-20 flex items-center gap-2 px-3 py-1.5 animate-fade-in"
+          {(showLoadMoreIndicator || (hasMore && !isLoadingMore)) && (
+            <button
+              type="button"
+              onClick={() => onLoadMore?.()}
+              disabled={isLoadingMore}
+              className="btn-press absolute left-1/2 -translate-x-1/2 bottom-24 z-20 flex items-center gap-2 px-4 py-2 animate-fade-in"
               style={{
                 ...monoStyle,
                 borderRadius: "999px",
@@ -396,20 +399,32 @@ export function Feed({ videos, folderId, startVideoId, hasMore, isLoadingMore, o
                 WebkitBackdropFilter: "blur(12px)",
                 border: "1px solid var(--control-border)",
                 color: "rgba(255,255,255,0.7)",
+                opacity: isLoadingMore ? 0.7 : 1,
               }}
             >
-              <div
-                className="animate-spin-smooth"
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  border: "1.5px solid rgba(255,255,255,0.2)",
-                  borderTopColor: "rgba(255,255,255,0.8)",
-                  borderRadius: "50%",
-                }}
-              />
-              Loading more
-            </div>
+              {isLoadingMore ? (
+                <>
+                  <div
+                    className="animate-spin-smooth"
+                    style={{
+                      width: "12px",
+                      height: "12px",
+                      border: "1.5px solid rgba(255,255,255,0.2)",
+                      borderTopColor: "rgba(255,255,255,0.8)",
+                      borderRadius: "50%",
+                    }}
+                  />
+                  Loading more
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12l7 7 7-7" />
+                  </svg>
+                  Load more
+                </>
+              )}
+            </button>
           )}
 
           {/* Right side controls */}

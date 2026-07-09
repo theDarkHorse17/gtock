@@ -2,32 +2,48 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { listVideos } from "../utils/drive";
 import type { Video } from "../types/Video";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 15;
 
-async function fetchFolderPage({ folderId, pageToken }: { folderId: string; pageToken?: string | null }) {
-  return listVideos(folderId, PAGE_SIZE, pageToken);
+export interface VideoPage {
+  videos: Video[];
+  nextPageToken: Record<string, string | null> | null;
 }
 
 export function useDriveVideos(folderIds: string[] | null) {
-  return useInfiniteQuery({
-    queryKey: ["videos", folderIds],
+  return useInfiniteQuery<VideoPage, Error, VideoPage, [string, string[]], Record<string, string | null>>({
+    queryKey: ["videos", folderIds || []],
     queryFn: async ({ pageParam, queryKey }) => {
-      const ids = queryKey[1] as string[];
-      const tokens = (pageParam || {}) as Record<string, string | null>;
+      const ids = queryKey[1];
+      const tokens = pageParam || {};
+
+      // Only fetch folders that still have pages. On first fetch, all folders.
+      const foldersToFetch = ids.filter((folderId) => {
+        const token = tokens[folderId];
+        return token !== undefined ? token !== null : true;
+      });
 
       const results = await Promise.all(
-        ids.map((folderId) => fetchFolderPage({ folderId, pageToken: tokens[folderId] }))
+        foldersToFetch.map((folderId) =>
+          listVideos(folderId, PAGE_SIZE, tokens[folderId] || undefined)
+        )
       );
 
       const allVideos: Video[] = [];
-      const nextTokens: Record<string, string | null> = {};
+      const nextTokens: Record<string, string | null> = { ...tokens };
       let hasMore = false;
 
       results.forEach((result, index) => {
-        const folderId = ids[index];
+        const folderId = foldersToFetch[index];
         allVideos.push(...result.videos);
         nextTokens[folderId] = result.nextPageToken;
         if (result.nextPageToken) hasMore = true;
+      });
+
+      // Mark exhausted folders explicitly
+      ids.forEach((folderId) => {
+        if (!foldersToFetch.includes(folderId)) {
+          nextTokens[folderId] = null;
+        }
       });
 
       // Sort by created time descending for a fresh feed feel
@@ -41,5 +57,6 @@ export function useDriveVideos(folderIds: string[] | null) {
     initialPageParam: {} as Record<string, string | null>,
     getNextPageParam: (lastPage) => lastPage.nextPageToken,
     enabled: !!folderIds && folderIds.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
