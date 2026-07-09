@@ -4,10 +4,6 @@ import type { Video } from "../types/Video";
 
 const PAGE_SIZE = 12;
 
-interface FolderQueryKey {
-  folderId: string;
-}
-
 async function fetchFolderPage({ folderId, pageToken }: { folderId: string; pageToken?: string | null }) {
   return listVideos(folderId, PAGE_SIZE, pageToken);
 }
