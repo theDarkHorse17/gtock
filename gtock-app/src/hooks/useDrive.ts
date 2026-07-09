@@ -10,10 +10,10 @@ export interface VideoPage {
 }
 
 export function useDriveVideos(folderIds: string[] | null) {
-  return useInfiniteQuery<VideoPage, Error, VideoPage, [string, string[]], Record<string, string | null>>({
-    queryKey: ["videos", folderIds || []],
-    queryFn: async ({ pageParam, queryKey }) => {
-      const ids = queryKey[1];
+  return useInfiniteQuery({
+    queryKey: ["videos", folderIds || []] as const,
+    queryFn: async ({ pageParam }: { pageParam: Record<string, string | null> }) => {
+      const ids = folderIds || [];
       const tokens = pageParam || {};
 
       // Only fetch folders that still have pages. On first fetch, all folders.
