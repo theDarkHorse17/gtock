@@ -45,32 +45,28 @@ async function getAccessToken(sa) {
   return res.json();
 }
 
-async function listVideos(token, folderId) {
+async function listVideos(token, folderId, pageSize, pageToken) {
   const q = `'${folderId}' in parents and mimeType contains 'video/' and trashed = false`;
   const fields = "nextPageToken,files(id,name,mimeType,size,createdTime)";
-  let allFiles = [];
-  let pageToken = null;
 
-  do {
-    const params = new URLSearchParams({
-      q,
-      fields,
-      pageSize: "1000",
-      access_token: token,
-    });
-    if (pageToken) params.set("pageToken", pageToken);
+  const params = new URLSearchParams({
+    q,
+    fields,
+    pageSize: String(pageSize || 20),
+    access_token: token,
+  });
+  if (pageToken) params.set("pageToken", pageToken);
 
-    const url = `${GOOGLE_DRIVE_API}/files?${params.toString()}`;
-    const res = await fetch(url);
-    const data = await res.json();
+  const url = `${GOOGLE_DRIVE_API}/files?${params.toString()}`;
+  const res = await fetch(url);
+  const data = await res.json();
 
-    if (data.error) return data;
+  if (data.error) return data;
 
-    allFiles = allFiles.concat(data.files || []);
-    pageToken = data.nextPageToken || null;
-  } while (pageToken);
-
-  return { files: allFiles };
+  return {
+    files: data.files || [],
+    nextPageToken: data.nextPageToken || null,
+  };
 }
 
 async function getFolderName(token, folderId) {
@@ -147,7 +143,9 @@ export default {
         return json(result);
       }
 
-      const result = await listVideos(tokenRes.access_token, folderId);
+      const pageSize = url.searchParams.get("pageSize");
+      const pageToken = url.searchParams.get("pageToken");
+      const result = await listVideos(tokenRes.access_token, folderId, pageSize, pageToken);
       return json(result);
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "Unexpected worker error" }, 500);

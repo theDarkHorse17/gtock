@@ -99,9 +99,10 @@ export function VideoPlayer({ video, isPlaying, isMuted, isLooping, isCinemaMode
         key={video.id}
         ref={videoRef}
         src={video.videoUrl}
+        poster={video.thumbnailUrl}
         className="h-full w-full object-contain"
         playsInline
-        preload="auto"
+        preload="metadata"
         onTimeUpdate={updateProgress}
         onLoadedMetadata={updateProgress}
         onLoadedData={handleLoadedData}

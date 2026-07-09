@@ -6,6 +6,9 @@ interface FeedProps {
   videos: Video[];
   folderId: string;
   startVideoId?: string | null;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
   onChangeFolder?: () => void;
   onLikedChange?: () => void;
 }
@@ -86,7 +89,9 @@ const controlButtonBase = {
   transition: "background-color 200ms var(--ease-out), transform 100ms var(--ease-out), border-color 200ms var(--ease-out)",
 };
 
-export function Feed({ videos, folderId, startVideoId, onChangeFolder, onLikedChange }: FeedProps) {
+const LOAD_MORE_THRESHOLD = 4;
+
+export function Feed({ videos, folderId, startVideoId, hasMore, isLoadingMore, onLoadMore, onChangeFolder, onLikedChange }: FeedProps) {
   const [badVersion, setBadVersion] = useState(0);
   const badIds = readBadIds();
   const goodVideos = useMemo(() => videos.filter((v) => !badIds.has(v.id)), [videos, badVersion]);
@@ -102,11 +107,9 @@ export function Feed({ videos, folderId, startVideoId, onChangeFolder, onLikedCh
   });
   const [likeBounce, setLikeBounce] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const preloadRef = useRef<HTMLVideoElement>(null);
   const touchStartY = useRef(0);
   const touchEndY = useRef(0);
   const currentVideo = goodVideos[currentIndex] ?? goodVideos[0];
-  const nextVideo = goodVideos[currentIndex + 1];
   const lastSavedId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -133,6 +136,16 @@ export function Feed({ videos, folderId, startVideoId, onChangeFolder, onLikedCh
       writeLastVideoId(folderId, currentVideo.id);
     }
   }, [currentVideo?.id]);
+
+  // Auto-load more videos when approaching end
+  useEffect(() => {
+    if (hasMore && !isLoadingMore && onLoadMore) {
+      const remaining = goodVideos.length - currentIndex - 1;
+      if (remaining <= LOAD_MORE_THRESHOLD) {
+        onLoadMore();
+      }
+    }
+  }, [currentIndex, goodVideos.length, hasMore, isLoadingMore, onLoadMore]);
 
   const goToNext = useCallback(() => {
     const maxIndex = Math.max(goodVideos.length - 1, 0);
@@ -261,14 +274,6 @@ export function Feed({ videos, folderId, startVideoId, onChangeFolder, onLikedCh
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  // Preload next video
-  useEffect(() => {
-    if (preloadRef.current && nextVideo) {
-      preloadRef.current.src = nextVideo.videoUrl;
-      preloadRef.current.load();
-    }
-  }, [nextVideo?.videoUrl]);
-
   function handleLike() {
     if (!currentVideo) return;
     toggleLiked(currentVideo, folderId);
@@ -281,13 +286,41 @@ export function Feed({ videos, folderId, startVideoId, onChangeFolder, onLikedCh
   if (goodVideos.length === 0 || !currentVideo) {
     return (
       <div
-        className="flex h-dvh items-center justify-center animate-fade-in"
+        className="flex h-dvh flex-col items-center justify-center gap-4 px-6 animate-fade-in"
         style={{ background: "var(--video-canvas)", color: "var(--fg-muted)", fontSize: "14px" }}
       >
-        {videos.length === 0 ? "No videos found" : "All videos marked as bad"}
+        <div
+          className="w-12 h-12 flex items-center justify-center"
+          style={{
+            border: "1px solid var(--border-default)",
+            borderRadius: "14px",
+            background: "var(--bg-secondary)",
+          }}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p>{videos.length === 0 ? "No videos found" : "All videos marked as bad"}</p>
+        {videos.length === 0 && hasMore && isLoadingMore && (
+          <div
+            className="animate-spin-smooth"
+            style={{
+              width: "18px",
+              height: "18px",
+              border: "2px solid rgba(255,255,255,0.08)",
+              borderTopColor: "rgba(255,255,255,0.6)",
+              borderRadius: "50%",
+            }}
+          />
+        )}
       </div>
     );
   }
+
+  const remainingCount = Math.max(goodVideos.length - currentIndex - 1, 0);
+  const showLoadMoreIndicator = isLoadingMore && remainingCount <= LOAD_MORE_THRESHOLD;
 
   return (
     <div
@@ -314,11 +347,6 @@ export function Feed({ videos, folderId, startVideoId, onChangeFolder, onLikedCh
           goToNext();
         }}
       />
-
-      {/* Hidden preload for next video */}
-      {nextVideo && (
-        <video ref={preloadRef} className="hidden" preload="auto" muted />
-      )}
 
       {/* Normal mode controls */}
       {!isCinemaMode && (
@@ -355,6 +383,34 @@ export function Feed({ videos, folderId, startVideoId, onChangeFolder, onLikedCh
               {currentIndex + 1} / {goodVideos.length}
             </div>
           </div>
+
+          {/* Load more indicator */}
+          {showLoadMoreIndicator && (
+            <div
+              className="absolute left-1/2 -translate-x-1/2 bottom-24 z-20 flex items-center gap-2 px-3 py-1.5 animate-fade-in"
+              style={{
+                ...monoStyle,
+                borderRadius: "999px",
+                background: "var(--control-bg)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                border: "1px solid var(--control-border)",
+                color: "rgba(255,255,255,0.7)",
+              }}
+            >
+              <div
+                className="animate-spin-smooth"
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  border: "1.5px solid rgba(255,255,255,0.2)",
+                  borderTopColor: "rgba(255,255,255,0.8)",
+                  borderRadius: "50%",
+                }}
+              />
+              Loading more
+            </div>
+          )}
 
           {/* Right side controls */}
           {!isFullscreen && (

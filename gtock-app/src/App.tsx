@@ -50,7 +50,15 @@ function AppContent() {
   const uniqueIds = [...new Set(parsedIds)];
 
   const folderIds = page === "feed" && uniqueIds.length > 0 ? uniqueIds : null;
-  const { data: videos, isLoading, error } = useDriveVideos(folderIds);
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error,
+  } = useDriveVideos(folderIds);
+  const videos = data?.pages.flatMap((page) => page.videos) || [];
   const likedCount = readLiked().length;
 
   function updateUrl(index: number, value: string) {
@@ -553,6 +561,9 @@ function AppContent() {
           videos={videos || []}
           folderId={folderIds?.[0] || ""}
           startVideoId={startVideoId}
+          hasMore={!!hasNextPage}
+          isLoadingMore={isFetchingNextPage}
+          onLoadMore={() => fetchNextPage()}
           onChangeFolder={goHome}
         />
       )}
