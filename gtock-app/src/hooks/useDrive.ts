@@ -2,7 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { listVideos } from "../utils/drive";
 import type { Video } from "../types/Video";
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 30;
 
 export interface VideoPage {
   videos: Video[];
